@@ -38,8 +38,9 @@ Excel Comparator es una aplicación web creada con Flask que permite comparar do
     ```
 
 ## Uso
+1. **Crear una carpeta llamada uploads**
 
-1. **Ejecuta la aplicación**:
+2. **Ejecuta la aplicación**:
 
     ```bash
     python app.py
