@@ -1,98 +1,110 @@
 from flask import Flask, request, render_template, redirect, url_for
 import pandas as pd
+import uuid
 import os
 
-app = Flask(__name__)
-app.config['UPLOAD_FOLDER'] = 'uploads'
+def crear_app():
+    app = Flask(__name__)
+    app.config['UPLOAD_FOLDER'] = 'uploads'
 
-@app.route('/')
-def index():
-    return render_template('index.html')
+    @app.route('/')
+    def index():
+        return render_template('index.html')
 
-@app.route('/compare', methods=['POST'])
-def compare():
-    if 'file1' not in request.files or 'file2' not in request.files:
-        return redirect(request.url)
+    @app.route('/compare', methods=['POST'])
+    def compare():
+        if 'file1' not in request.files or 'file2' not in request.files:
+            return redirect(request.url)
 
-    file1 = request.files['file1']
-    file2 = request.files['file2']
+        file1 = request.files['file1']
+        file2 = request.files['file2']
 
-    if file1.filename == '' or file2.filename == '':
-        return redirect(request.url)
+        if file1.filename == '' or file2.filename == '':
+            return redirect(request.url)
 
-    filepath1 = os.path.join(app.config['UPLOAD_FOLDER'], file1.filename)
-    filepath2 = os.path.join(app.config['UPLOAD_FOLDER'], file2.filename)
+        uuid1 = uuid.uuid4()
+        uuid2 = uuid.uuid4()
+        filepath1 = os.path.join(app.config['UPLOAD_FOLDER'], f"{uuid1}_{file1.filename}")
+        filepath2 = os.path.join(app.config['UPLOAD_FOLDER'], f"{uuid2}_{file2.filename}")
 
-    file1.save(filepath1)
-    file2.save(filepath2)
+        file1.save(filepath1)
+        file2.save(filepath2)
 
-    # Leer los archivos según su extensión
-    ext1 = os.path.splitext(file1.filename)[1]
-    ext2 = os.path.splitext(file2.filename)[1]
+        # Leer los archivos según su extensión
+        ext1 = os.path.splitext(file1.filename)[1]
+        ext2 = os.path.splitext(file2.filename)[1]
 
-    if ext1 == '.xlsx' and ext2 == '.xlsx':
-        excel1 = pd.ExcelFile(filepath1)
-        excel2 = pd.ExcelFile(filepath2)
-        differences = compare_excel_files(excel1, excel2)
-    elif ext1 == '.csv' and ext2 == '.csv':
-        df1 = read_csv_file(filepath1)
-        df2 = read_csv_file(filepath2)
-        if isinstance(df1, str) or isinstance(df2, str):
-            differences = "Error al leer los archivos CSV: " + (df1 if isinstance(df1, str) else df2)
+        if ext1 == '.xlsx' and ext2 == '.xlsx':
+            excel1 = pd.ExcelFile(filepath1)
+            excel2 = pd.ExcelFile(filepath2)
+            differences = compare_excel_files(excel1, excel2)
+            excel1.close()  # Cerrar el archivo
+            excel2.close()  # Cerrar el archivo
+        elif ext1 == '.csv' and ext2 == '.csv':
+            df1 = read_csv_file(filepath1)
+            df2 = read_csv_file(filepath2)
+            if isinstance(df1, str) or isinstance(df2, str):
+                differences = "Error al leer los archivos CSV: " + (df1 if isinstance(df1, str) else df2)
+            else:
+                differences = compare_csv_files(df1, df2)
         else:
-            differences = compare_csv_files(df1, df2)
-    else:
-        differences = "Los archivos deben ser ambos .xlsx o ambos .csv."
+            differences = "Los archivos deben ser ambos .xlsx o ambos .csv."
 
-    return render_template('result.html', differences=differences)
+        # Eliminar los archivos de uploads
+        os.remove(filepath1)
+        os.remove(filepath2)    
 
-def read_csv_file(filepath):
-    delimiters = [',', ';', '\t']
-    encodings = ['utf-8', 'latin1']
+        return render_template('result.html', differences=differences)
 
-    for encoding in encodings:
-        for delimiter in delimiters:
-            try:
-                return pd.read_csv(filepath, encoding=encoding, delimiter=delimiter)
-            except Exception as e:
-                continue
+    def read_csv_file(filepath):
+        delimiters = [',', ';', '\t']
+        encodings = ['utf-8', 'latin1']
 
-    return f"No se pudo leer el archivo {filepath}. Intenta con otro formato o revisa el contenido."
+        for encoding in encodings:
+            for delimiter in delimiters:
+                try:
+                    return pd.read_csv(filepath, encoding=encoding, delimiter=delimiter)
+                except Exception as e:
+                    continue
 
-def compare_excel_files(excel1, excel2):
-    if set(excel1.sheet_names) != set(excel2.sheet_names):
-        return ["Los archivos tienen diferentes hojas."]
+        return f"No se pudo leer el archivo {filepath}. Intenta con otro formato o revisa el contenido."
 
-    differences = []
+    def compare_excel_files(excel1, excel2):
+        if set(excel1.sheet_names) != set(excel2.sheet_names):
+            return ["Los archivos tienen diferentes hojas."]
 
-    for sheet in excel1.sheet_names:
-        df1 = pd.read_excel(excel1, sheet_name=sheet)
-        df2 = pd.read_excel(excel2, sheet_name=sheet)
+        differences = []
+
+        for sheet in excel1.sheet_names:
+            df1 = pd.read_excel(excel1, sheet_name=sheet)
+            df2 = pd.read_excel(excel2, sheet_name=sheet)
+
+            if df1.equals(df2):
+                differences.append(f"Hoja '{sheet}': Los archivos son iguales.")
+            else:
+                for i in range(len(df1)):
+                    for j in range(len(df1.columns)):
+                        if df1.iat[i, j] != df2.iat[i, j]:
+                            differences.append(f"<span class='difference'>Hoja '{sheet}' - Diferencia en fila {i+1}, columna {j+1}: {df1.iat[i, j]} != {df2.iat[i, j]}</span>")
+
+        return differences
+
+    def compare_csv_files(df1, df2):
+        differences = []
 
         if df1.equals(df2):
-            differences.append(f"Hoja '{sheet}': Los archivos son iguales.")
+            differences.append("Los archivos CSV son iguales.")
         else:
             for i in range(len(df1)):
                 for j in range(len(df1.columns)):
                     if df1.iat[i, j] != df2.iat[i, j]:
-                        differences.append(f"Hoja '{sheet}' - Diferencia en fila {i+1}, columna {j+1}: {df1.iat[i, j]} != {df2.iat[i, j]}")
+                        differences.append(f"Diferencia en fila {i+1}, columna {j+1}: {df1.iat[i, j]} != {df2.iat[i, j]}")
 
-    return differences
-
-def compare_csv_files(df1, df2):
-    differences = []
-
-    if df1.equals(df2):
-        differences.append("Los archivos CSV son iguales.")
-    else:
-        for i in range(len(df1)):
-            for j in range(len(df1.columns)):
-                if df1.iat[i, j] != df2.iat[i, j]:
-                    differences.append(f"Diferencia en fila {i+1}, columna {j+1}: {df1.iat[i, j]} != {df2.iat[i, j]}")
-
-    return differences
+        return differences
+    return app
 
 if __name__ == '__main__':
+    app = crear_app()
     if not os.path.exists('uploads'):
         os.makedirs('uploads')
     app.run(debug=True)
