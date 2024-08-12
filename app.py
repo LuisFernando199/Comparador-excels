@@ -4,7 +4,7 @@ import uuid
 import os
 
 def crear_app():
-    app = Flask(__name__)
+    app = Flask(__name__, template_folder='templates', static_folder='static')
     app.config['UPLOAD_FOLDER'] = 'uploads'
 
     @app.route('/')
@@ -76,8 +76,8 @@ def crear_app():
         differences = []
 
         for sheet in excel1.sheet_names:
-            df1 = pd.read_excel(excel1, sheet_name=sheet)
-            df2 = pd.read_excel(excel2, sheet_name=sheet)
+            df1 = pd.read_excel(excel1, sheet_name=sheet, engine='openpyxl')
+            df2 = pd.read_excel(excel2, sheet_name=sheet, engine='openpyxl')
 
             if df1.equals(df2):
                 differences.append(f"Hoja '{sheet}': Los archivos son iguales.")

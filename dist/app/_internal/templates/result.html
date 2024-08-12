@@ -1,0 +1,24 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <title>Resultado de la Comparación</title>
+    <link rel="stylesheet" href="{{ url_for('static', filename='styles.css') }}">
+</head>
+<body>
+    <div class="container">
+        <h1>Resultado de la Comparación</h1>
+        {% if differences == "Los archivos tienen diferentes hojas." %}
+            <p class="alert">{{ differences|safe }}</p>
+        {% else %}
+            <ul class="differences-list">
+            {% for diff in differences %}
+                <li class="difference-item">{{ diff|safe }}</li>
+            {% endfor %}
+            </ul>
+        {% endif %}
+        <a href="{{ url_for('index') }}" class="back-link">Comparar otros archivos</a>
+    </div>
+</body>
+</html>
+

@@ -1,0 +1,22 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>Comparador de Excel y CSV</title>
+    <link rel="stylesheet" href="{{ url_for('static', filename='styles.css') }}">
+</head>
+<body>
+    <div class="container">
+        <h1>Sube dos archivos Excel o CSV para comparar</h1>
+        <form action="{{ url_for('compare') }}" method="post" enctype="multipart/form-data">
+            <input type="file" name="file1" required>
+            <input type="file" name="file2" required>
+            <input type="submit" value="Comparar">
+        </form>
+    </div>
+</body>
+<footer>
+    <p>&copy; 2024 La app compara archivos CSV y XLSX para identificar y resaltar diferencias en sus datos.</p>
+</footer>
+  
+</html>
